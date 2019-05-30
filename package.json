@@ -1,0 +1,17 @@
+{
+  "name": "wf-scrape",
+  "version": "1.0.0",
+  "description": "Scrapes all relevant information from all available sources.",
+  "main": "main.js",
+  "scripts": {
+    "start": "node source/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Maximilian Spiekermann",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.2",
+    "lodash": "^4.17.11",
+    "request": "^2.88.0"
+  }
+}

@@ -1,0 +1,213 @@
+/* WARFRAME-FILTER.JS */
+
+const KNOWN_VARIANTS = [
+    "prime",
+    "umbra"
+];
+
+const IRRELEVANT_ATTRIBUTES = [
+    "uniqueName",
+    "type",
+    "buildPrice",
+    "buildTime",
+    "skipBuildTimePrice",
+    "buildQuantity",
+    "consumeOnBuild",
+    "components", // Maybe for future updates
+    "imageName", // Replaced by custom image source
+    "category",
+    "tradable",
+    "patchlogs",
+    "conclave",
+    "color",
+    "introduced",
+    "sex",
+    "releaseDate",
+    "wikiaThumbnail",
+    "wikiaUrl"
+];
+
+exports.filterWarframeNormalData = function(inputJSON)
+{
+    // Convert the input JSON string into a JS object.
+    let warframeBuffer = JSON.parse(inputJSON);
+
+    // Iterate through all Warframes.
+    for(var warframeIndex = 0; warframeIndex < warframeBuffer.length; ++warframeIndex) 
+    {
+        // The Warframe to parse.
+        let warframe = warframeBuffer[warframeIndex];
+
+        // Delete all Warframe variants.
+        if(KNOWN_VARIANTS.some((variant) => warframe.name.toLowerCase().includes(variant.toLowerCase())))
+        {
+            delete warframeBuffer[warframeIndex]; // Leaves null artifact behind.
+            continue;
+        }
+
+        // Add attributes.
+        warframe["id"] = parseInt(_.uniqueId());
+        warframe["img"] = "assets/warframes/normal/" + warframe.name + ".webp";
+
+        // Delete all irrelevant attributes.
+        warframe = _.omit(warframe, IRRELEVANT_ATTRIBUTES);
+
+        // Apply the changes to the element to the buffer.
+        warframeBuffer[warframeIndex] = warframe;
+    }
+
+    // Clear null artifacts.
+    warframeBuffer = warframeBuffer.filter(e => e);
+
+    return warframeBuffer;
+}
+
+exports.filterWarframeVariantData = function(inputJSON, variantName)
+{
+    // Convert the input JSON string into a JS object.
+    let warframeBuffer = JSON.parse(inputJSON);
+
+    // Iterate through all Warframes.
+    for(var warframeIndex = 0; warframeIndex < warframeBuffer.length; ++warframeIndex) 
+    {
+        // The Warframe to parse.
+        let warframe = warframeBuffer[warframeIndex];
+
+        // Delete all Warframes variants not matching the target variant.
+        if(!warframe.name.toLowerCase().includes(variantName.toLowerCase()))
+        {
+            delete warframeBuffer[warframeIndex]; // Leaves null artifact behind.
+            continue;
+        }
+
+        // Add attributes.
+        warframe["img"] = "assets/warframes/" + variantName.toLowerCase() + "/" + warframe.name + ".webp";
+
+        // Delete all irrelevant attributes.
+        warframe = _.omit(warframe, IRRELEVANT_ATTRIBUTES);
+
+        // Apply the changes to the element to the buffer.
+        warframeBuffer[warframeIndex] = warframe;
+    }
+
+    // Clear null artifacts.
+    warframeBuffer = warframeBuffer.filter(e => e);
+
+    return warframeBuffer;
+}
+
+exports.parseDeltaWarframeData = function(normalBuffer, variantBuffer, variantName)
+{
+    let deltaBuffer = [];
+
+    // Iterate through Warframes.
+    for(var variantIndex = 0; variantIndex < variantBuffer.length; ++variantIndex)
+    {
+        let variantWarframe = variantBuffer[variantIndex];
+        // Find normal version of Warframe variant.
+        let normalWarframe = normalBuffer.filter((warframe) => {
+            return warframe.name.toLowerCase().includes(variantWarframe.name.toLowerCase().replace(" " + variantName.toLowerCase(), ""));
+        }); console.assert(normalWarframe.length == 1, normalWarframe);
+        normalWarframe = normalWarframe[0];
+
+        // Iterate through attributes.
+        for(var attribute in variantWarframe)
+        {
+            if(!_.has(variantWarframe, attribute)) continue;
+
+            // The attribute values are equal.
+            if(_.isEqual(variantWarframe[attribute], normalWarframe[attribute]))
+            {
+                // Delete redundant attribute.
+                variantWarframe = _.omit(variantWarframe, attribute);
+                continue;
+            }
+
+            // The attribute values differ.
+            // Encoding:
+            // '+' - positive change (green)
+            // '-' - negative change (red)
+            // 'm' - neutral  change (yellow)
+
+            // Attribute type: number
+            if(_.isNumber(variantWarframe[attribute])) 
+            {
+                // Exception
+                if(attribute == "masteryReq") 
+                {
+                    // Higher numbers are worse.
+                    variantWarframe[attribute] = [ variantWarframe[attribute], ( variantWarframe[attribute] > normalWarframe[attribute] ? "-" : "+" ) ];
+                }
+                // Default
+                else 
+                {
+                    // Higher numbers are better.
+                    variantWarframe[attribute] = [ variantWarframe[attribute], ( variantWarframe[attribute] > normalWarframe[attribute] ? "+" : "-" ) ];
+                }
+                continue;
+            }
+
+            // Attribute type: array
+            if(_.isArray(variantWarframe[attribute]))
+            {
+                if(variantWarframe[attribute].length > normalWarframe[attribute].length)
+                {
+                    // Longer array.
+                    variantWarframe[attribute] = [ variantWarframe[attribute], "+" ];
+                }
+                else if(variantWarframe[attribute].length < normalWarframe[attribute].length) 
+                { 
+                    // Shorter array.
+                    variantWarframe[attribute] = [ variantWarframe[attribute], "-" ];
+                } 
+                else
+                { 
+                    // Same length.
+                    variantWarframe[attribute] = [ variantWarframe[attribute], "m" ];
+                }
+                continue;
+            }
+        }
+
+        variantWarframe["id"] = normalWarframe["id"];
+        deltaBuffer.push(variantWarframe);
+    }
+
+    return deltaBuffer;
+}
+
+
+// Warframe: Passive
+        let passiveName = $('.tabbertab[title="Abilities"] h2').eq(0).find("span").eq(0).text().trim();
+        let passiveDescription = $('.tabbertab[title="Abilities"] p').eq(1);
+        $(passiveDescription).find("span").each((index, item) => {
+            if($(item).attr("data-param") == undefined) return;
+            $(item).replaceWith($(item).attr("data-param"));
+        }); passiveDescription = $(passiveDescription).text().trim().replace("\n", "").trim();
+        if(passiveName != "" && passiveDescription != "")
+        {
+            warframeBuffer[i]["passive"] = {
+                name: passiveName,
+                description: passiveDescription
+            };
+        }
+
+        // Warframe: Abilities
+        let abilities = [];
+        $('.tabbertab[title="Abilities"] table[style~="background:#2a2a31;"]').each((index, item) =>
+        {
+            if($(item).find("td b a span").length == 0) return;
+            abilities.push({
+                name: $(item).find("td b a span").eq(0).text().trim(),
+                description: $(item).find("td").clone().children().remove().end().text().trim()
+            });
+        });
+        warframeBuffer[i]["abilities"] = abilities;
+
+// Warframe: Description
+        let descriptionElement = $('.tabbertab[title="Main"] .codexflower');
+        let description = $(descriptionElement).text().trim();
+        if(description != "")
+        {
+            warframeBuffer[warframeBuffer.length - 1]["description"] = description;
+        }

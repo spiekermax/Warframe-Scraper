@@ -1,0 +1,1 @@
+- scrape missing syndicate drop info
